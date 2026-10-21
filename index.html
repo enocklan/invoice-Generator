@@ -59,25 +59,60 @@
         </div>
 
         <!-- Summary cards -->
-        <div class="summary-cards">
-          <article class="summary-card">
-            <p class="card-label">Outstanding</p>
-            <h3>KES 45,000</h3>
-            <p class="card-description">Awaiting payment</p>
-          </article>
+       
+<div class="summary-cards">
+  <article class="summary-card">
+    <div class="card-top">
+      <p class="card-label">Outstanding</p>
+      <label class="currency-control">
+        <span>Currency</span>
+        <select class="home-currency" aria-label="Outstanding card currency">
+          <option value="KES" selected>KSH (KES)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="AUD">AUD (A$)</option>
+        </select>
+      </label>
+    </div>
+    <h3 class="card-amount" data-amount="45000">KSh 45,000</h3>
+    <p class="card-description">Awaiting payment</p>
+  </article>
 
-          <article class="summary-card">
-            <p class="card-label">Overdue</p>
-            <h3>KES 12,000</h3>
-            <p class="card-description">Past the due date</p>
-          </article>
+  <article class="summary-card">
+    <div class="card-top">
+      <p class="card-label">Overdue</p>
+      <label class="currency-control">
+        <span>Currency</span>
+        <select class="home-currency" aria-label="Overdue card currency">
+          <option value="KES" selected>KSH (KES)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="AUD">AUD (A$)</option>
+        </select>
+      </label>
+    </div>
+    <h3 class="card-amount" data-amount="12000">KSh 12,000</h3>
+    <p class="card-description">Past the due date</p>
+  </article>
 
-          <article class="summary-card">
-            <p class="card-label">Paid in October</p>
-            <h3>KES 86,500</h3>
-            <p class="card-description">Successfully paid</p>
-          </article>
-        </div>
+  <article class="summary-card">
+    <div class="card-top">
+      <p class="card-label">Paid in October</p>
+      <label class="currency-control">
+        <span>Currency</span>
+        <select class="home-currency" aria-label="Paid in October card currency">
+          <option value="KES" selected>KSH (KES)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="AUD">AUD (A$)</option>
+        </select>
+      </label>
+    </div>
+    <h3 class="card-amount" data-amount="86500">KSh 86,500</h3>
+    <p class="card-description">Successfully paid</p>
+  </article>
+</div>
+
       </section>
     </main>
 

@@ -11,6 +11,11 @@ body {
   color: #20242C;
 }
 
+button,
+select {
+  font: inherit;
+}
+
 /* Main application layout */
 .app-layout {
   display: flex;
@@ -182,35 +187,124 @@ body {
 }
 
 .summary-card {
+  min-width: 0;
   padding: 24px;
   background-color: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(32, 43, 59, 0.03);
+  transition: box-shadow 0.2s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(32, 43, 59, 0.08);
+}
+
+/* Card heading and currency selector */
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+
+.card-top .card-label {
+  min-width: 0;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .card-label {
-  margin: 0 0 16px;
   color: #64748B;
   font-size: 14px;
 }
 
-.summary-card h3 {
+/* Currency label and dropdown */
+.currency-control {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.currency-control span {
+  color: #64748B;
+  font-size: 11px;
+}
+
+.home-currency {
+  display: block;
+  width: 112px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid #D1D5DB;
+  border-radius: 7px;
+  background-color: #FFFFFF;
+  color: #20242C;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.home-currency:hover {
+  border-color: #2563EB;
+}
+
+.home-currency:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+
+/* Card amounts and descriptions */
+.summary-card h3,
+.summary-card .card-amount {
   margin: 0 0 12px;
   color: #20242C;
-  font-size: 24px;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .card-description {
   margin: 0;
   color: #64748B;
   font-size: 13px;
+  line-height: 1.5;
 }
 
-/* Responsive layout */
+/* Tablet layout */
+@media (max-width: 1100px) {
+  .sidebar {
+    width: 210px;
+    padding: 24px 16px;
+  }
+
+  .dashboard-content {
+    padding: 24px;
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .summary-card {
+    padding: 20px;
+  }
+}
+
+/* Smaller tablets and large phones */
 @media (max-width: 768px) {
   .sidebar {
-    width: 190px;
-    padding: 24px 14px;
+    width: 180px;
+    padding: 20px 12px;
+  }
+
+  .brand {
+    font-size: 20px;
   }
 
   .top-header {
@@ -220,9 +314,30 @@ body {
   .top-header h1 {
     font-size: 22px;
   }
+
+  .dashboard-content {
+    padding: 20px;
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .card-top {
+    gap: 8px;
+  }
+
+  .home-currency {
+    width: 105px;
+  }
 }
 
-@media (max-width: 480px) {
+/* Mobile layout */
+@media (max-width: 600px) {
   .app-layout {
     flex-direction: column;
   }
@@ -234,17 +349,18 @@ body {
   }
 
   .brand {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
 
   .sidebar-nav {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 6px;
   }
 
   .nav-link {
-    padding: 10px;
-    font-size: 14px;
+    padding: 9px 10px;
+    font-size: 13px;
   }
 
   .sidebar-footer {
@@ -253,34 +369,99 @@ body {
 
   .top-header {
     padding: 18px 16px;
+    gap: 12px;
+  }
+
+  .top-header h1 {
+    font-size: 21px;
+  }
+
+  .workspace-label {
+    font-size: 12px;
   }
 
   .new-invoice-btn {
     padding: 10px 12px;
     font-size: 13px;
+    flex-shrink: 0;
   }
-}
 
-@media (max-width: 900px) {
-  .summary-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 600px) {
   .dashboard-content {
     padding: 20px 16px;
   }
 
+  .section-heading {
+    margin-bottom: 18px;
+  }
+
   .summary-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
 
   .summary-card {
-    padding: 20px;
+    padding: 18px;
+  }
+
+  .card-top {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-top .card-label {
+    font-size: 14px;
+  }
+
+  .currency-control {
+    width: 120px;
+  }
+
+  .home-currency {
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .summary-card h3,
+  .summary-card .card-amount {
+    font-size: 22px;
   }
 }
 
+/* Very small phones */
+@media (max-width: 360px) {
+  .top-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
+  .new-invoice-btn {
+    width: 100%;
+  }
 
+  .dashboard-content {
+    padding: 16px 10px;
+  }
 
+  .summary-card {
+    padding: 14px;
+  }
+
+  .card-top {
+    gap: 6px;
+  }
+
+  .currency-control {
+    width: 108px;
+  }
+
+  .home-currency {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+
+  .summary-card h3,
+  .summary-card .card-amount {
+    font-size: 19px;
+  }
+}
