@@ -133,6 +133,73 @@
 </div>
 
       </section>
+
+<!-- Invoice management section -->
+<section class="invoices-section">
+  <div class="invoices-heading">
+    <div>
+      <h2>Invoices</h2>
+      <p>View and manage all your invoices.</p>
+    </div>
+
+    <button class="new-invoice-btn" id="new-invoice-btn" type="button">
+      + New invoice
+    </button>
+  </div>
+
+  <!-- Invoice filters -->
+  <div class="invoice-filters" role="group" aria-label="Filter invoices">
+    <button class="filter-btn active" type="button" data-filter="all">
+      All
+    </button>
+
+    <button class="filter-btn" type="button" data-filter="draft">
+      Draft
+    </button>
+
+    <button class="filter-btn" type="button" data-filter="unpaid">
+      Unpaid 
+    </button>
+
+    <button class="filter-btn" type="button" data-filter="overdue">
+      Overdue
+    </button>
+
+    <button class="filter-btn" type="button" data-filter="paid">
+      Paid
+    </button>
+  </div>
+
+  <!-- Invoice table -->
+  <div class="table-container">
+    <table class="invoices-table">
+      <thead>
+        <tr>
+          <th>Invoice Number</th>
+          <th>Client Description</th>
+          <th>Issue Date</th>
+          <th>Due Date</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="invoices-table-body">
+        <tr>
+          <td colspan="7" class="table-message">
+            Invoices will appear here when loaded from the server.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p id="invoice-feedback" class="invoice-feedback" role="status" aria-live="polite"></p>
+</section>
+
+
+
     </main>
 
 
