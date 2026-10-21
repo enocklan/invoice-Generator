@@ -1,12 +1,17 @@
+
 {
   "name": "invoice-generator",
   "version": "1.0.0",
-  "description": "",
+  "description": "Invoice Generator web application",
   "main": "index.js",
   "scripts": {
+    "server": "json-server db.json --port 3000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "json-server": "^1.0.0-beta.15"
+  }
 }
