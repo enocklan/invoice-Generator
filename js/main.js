@@ -21,3 +21,18 @@ document.querySelectorAll(".home-currency").forEach((select) => {
       `${currencySymbols[currency]} ${formattedAmount}`;
   });
 });
+
+const filterButtons = document.querySelectorAll(".filter-btn");
+
+filterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    // Remove the active class from every filter.
+    filterButtons.forEach((filterButton) => {
+      filterButton.classList.remove("active");
+    });
+
+    // Highlight the filter that was clicked.
+    button.classList.add("active");
+  });
+});
+
