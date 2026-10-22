@@ -1,3 +1,49 @@
+
 {
-  "invoices": []
+  "invoices": [
+    {
+      "id": "1",
+      "invoiceNumber": "INV-001",
+      "clientName": "Acme Solutions",
+      "description": "Website development",
+      "issueDate": "2026-10-21",
+      "dueDate": "2026-10-30",
+      "amount": 45000,
+      "currency": "KES",
+      "status": "unpaid"
+    },
+    {
+      "id": "2",
+      "invoiceNumber": "INV-002",
+      "clientName": "Bright Designs",
+      "description": "Logo design",
+      "issueDate": "2026-10-20",
+      "dueDate": "2026-10-25",
+      "amount": 12000,
+      "currency": "KES",
+      "status": "paid"
+    },
+    {
+      "id": "3",
+      "invoiceNumber": "INV-003",
+      "clientName": "Nova Tech",
+      "description": "Software maintenance",
+      "issueDate": "2026-10-19",
+      "dueDate": "2026-10-24",
+      "amount": 18000,
+      "currency": "KES",
+      "status": "draft"
+    },
+    {
+      "id": "4",
+      "invoiceNumber": "INV-004",
+      "clientName": "Urban Media",
+      "description": "Marketing services",
+      "issueDate": "2026-10-10",
+      "dueDate": "2026-10-18",
+      "amount": 25000,
+      "currency": "KES",
+      "status": "overdue"
+    }
+  ]
 }
