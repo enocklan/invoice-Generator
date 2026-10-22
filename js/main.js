@@ -81,14 +81,26 @@ function isOutstanding(invoice) {
   return ["unpaid", "sent", "overdue"].includes(status);
 }
 
-// Identify overdue invoices using their due date
+// Identify overdue invoices
 function isOverdue(invoice) {
-  const today = new Date().toISOString().slice(0, 10);
+  const status = invoice.status?.toLowerCase();
+
+  // An invoice explicitly marked overdue always counts as overdue
+  if (status === "overdue") {
+    return true;
+  }
+
+  // Otherwise, automatically detect overdue unpaid or sent invoices
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const todayString = `${year}-${month}-${day}`;
 
   return (
-    isOutstanding(invoice) &&
+    ["unpaid", "sent"].includes(status) &&
     Boolean(invoice.dueDate) &&
-    invoice.dueDate < today
+    invoice.dueDate < todayString
   );
 }
 
@@ -151,7 +163,7 @@ async function updateSummaryCards() {
           selectedCurrency
         );
 
-        // Ignore results if the currency changed during conversion
+        // Do not display a result for an outdated currency selection
         if (select.value !== selectedCurrency) {
           return;
         }
@@ -298,24 +310,25 @@ async function handleStatusChange(event) {
   showFeedback("Updating invoice status...", "success");
 
   try {
-    // Save the new status to JSON Server using PATCH
+    // Save the status to JSON Server using PATCH
     const updatedInvoice = await updateInvoiceStatus(invoiceId, newStatus);
 
-    // Update local data after the API request succeeds
-    previousInvoice.status = updatedInvoice.status || newStatus;
+    // Update local data only after the API request succeeds
+    previousInvoice.status = (
+      updatedInvoice.status || newStatus
+    ).toLowerCase();
 
-    // Re-render because the invoice may move to another filter
+    // Refresh the table and summary cards
     renderInvoices();
-
-    // Recalculate the summary cards
     await updateSummaryCards();
 
     showFeedback("Invoice status updated successfully.", "success");
   } catch (error) {
     console.error("Could not update invoice status:", error);
 
-    // Restore the previous selection if saving fails
+    // Restore the previous selection when saving fails
     select.value = previousStatus;
+
     showFeedback(
       "Could not update invoice status. Please check JSON Server and try again.",
       "error"
@@ -349,6 +362,7 @@ async function loadInvoices() {
     `;
 
     console.error("Error loading invoices:", error);
+
     showFeedback(
       "Could not load invoices. Please check your API connection.",
       "error"
