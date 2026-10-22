@@ -42,7 +42,7 @@
       "dueDate": "2026-10-18",
       "amount": 25000,
       "currency": "KES",
-      "status": "paid"
+      "status": "overdue"
     }
   ]
 }

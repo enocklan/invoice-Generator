@@ -588,6 +588,82 @@ img {
   border: 0;
 }
 
+.invoice-form-section {
+  max-width: 1000px;
+  margin: 24px auto;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  color: #202b3b;
+}
+
+.invoice-form-section[hidden] {
+  display: none;
+}
+
+.form-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.form-heading p {
+  color: #64748b;
+}
+
+.invoice-form-section h3 {
+  margin: 28px 0 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.form-field label {
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.field-error {
+  color: #b91c1c;
+  min-height: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 /* Tablet and smaller desktop */
 @media (max-width: 1100px) {
   .sidebar {
