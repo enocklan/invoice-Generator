@@ -1,5 +1,5 @@
 
-import { getInvoices } from "./api.js";
+import { getInvoices, updateInvoiceStatus } from "./api.js";
 
 const currencySymbols = {
   KES: "KSh",
@@ -151,8 +151,8 @@ async function updateSummaryCards() {
           selectedCurrency
         );
 
-        // Don't overwrite a newer selection if the user changed currency
-        while (select.value !== selectedCurrency) {
+        // Ignore results if the currency changed during conversion
+        if (select.value !== selectedCurrency) {
           return;
         }
 
@@ -208,8 +208,9 @@ function renderInvoices() {
 
   invoicesTableBody.innerHTML = filteredInvoices
     .map((invoice) => {
-      const status = invoice.status?.toLowerCase() || "draft";
+      const status = (invoice.status || "draft").toLowerCase();
       const amount = Number(invoice.amount || 0);
+      const invoiceId = String(invoice.id);
 
       return `
         <tr>
@@ -223,12 +224,107 @@ function renderInvoices() {
               ${status.charAt(0).toUpperCase() + status.slice(1)}
             </span>
           </td>
-          <td>Actions coming soon</td>
+          <td>
+            <label class="sr-only" for="status-${invoiceId}">
+              Change status for ${invoice.invoiceNumber || "invoice"}
+            </label>
+
+            <select
+              class="invoice-status-select"
+              id="status-${invoiceId}"
+              data-invoice-id="${invoiceId}"
+              aria-label="Change invoice status"
+            >
+              <option value="draft" ${status === "draft" ? "selected" : ""}>
+                Draft
+              </option>
+              <option value="unpaid" ${status === "unpaid" ? "selected" : ""}>
+                Unpaid
+              </option>
+              <option value="paid" ${status === "paid" ? "selected" : ""}>
+                Paid
+              </option>
+              <option value="overdue" ${status === "overdue" ? "selected" : ""}>
+                Overdue
+              </option>
+            </select>
+          </td>
         </tr>
       `;
     })
     .join("");
 }
+
+// Show feedback to the user
+function showFeedback(message, type) {
+  const feedback = document.querySelector("#invoice-feedback");
+
+  if (!feedback) {
+    return;
+  }
+
+  feedback.textContent = message;
+  feedback.className = `invoice-feedback ${type}`;
+}
+
+// Handle invoice status changes
+async function handleStatusChange(event) {
+  const select = event.target;
+
+  if (!select.matches(".invoice-status-select")) {
+    return;
+  }
+
+  const invoiceId = select.dataset.invoiceId;
+  const newStatus = select.value;
+
+  const previousInvoice = allInvoices.find(
+    (invoice) => String(invoice.id) === String(invoiceId)
+  );
+
+  if (!previousInvoice) {
+    showFeedback("Could not find this invoice.", "error");
+    renderInvoices();
+    return;
+  }
+
+  const previousStatus = (previousInvoice.status || "draft").toLowerCase();
+
+  if (newStatus === previousStatus) {
+    return;
+  }
+
+  select.disabled = true;
+  showFeedback("Updating invoice status...", "success");
+
+  try {
+    // Save the new status to JSON Server using PATCH
+    const updatedInvoice = await updateInvoiceStatus(invoiceId, newStatus);
+
+    // Update local data after the API request succeeds
+    previousInvoice.status = updatedInvoice.status || newStatus;
+
+    // Re-render because the invoice may move to another filter
+    renderInvoices();
+
+    // Recalculate the summary cards
+    await updateSummaryCards();
+
+    showFeedback("Invoice status updated successfully.", "success");
+  } catch (error) {
+    console.error("Could not update invoice status:", error);
+
+    // Restore the previous selection if saving fails
+    select.value = previousStatus;
+    showFeedback(
+      "Could not update invoice status. Please check JSON Server and try again.",
+      "error"
+    );
+  }
+}
+
+// Listen for status changes on the table
+invoicesTableBody.addEventListener("change", handleStatusChange);
 
 // Load invoices from JSON Server
 async function loadInvoices() {
@@ -253,6 +349,10 @@ async function loadInvoices() {
     `;
 
     console.error("Error loading invoices:", error);
+    showFeedback(
+      "Could not load invoices. Please check your API connection.",
+      "error"
+    );
   }
 }
 
