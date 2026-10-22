@@ -8,34 +8,169 @@ const currencySymbols = {
   AUD: "A$"
 };
 
-// Home currency selectors on the summary cards
-document.querySelectorAll(".home-currency").forEach((select) => {
-  select.addEventListener("change", () => {
-    const currency = select.value;
-    const card = select.closest(".summary-card");
-    const amountElement = card?.querySelector(".card-amount");
-
-    if (!amountElement) return;
-
-    const amount = Number(amountElement.dataset.amount);
-
-    const formattedAmount = new Intl.NumberFormat("en-KE", {
-      maximumFractionDigits: 2
-    }).format(amount);
-
-    amountElement.textContent =
-      `${currencySymbols[currency] || currency} ${formattedAmount}`;
-  });
-});
-
-// Invoice table and filters
 const invoicesTableBody = document.querySelector("#invoices-table-body");
 const filterButtons = document.querySelectorAll(".filter-btn");
 
 let allInvoices = [];
 let currentFilter = "all";
 
-// Get invoices matching the selected filter
+const exchangeRatesCache = {};
+
+// Format amounts consistently
+function formatAmount(amount, currency) {
+  return `${currencySymbols[currency] || currency} ${
+    new Intl.NumberFormat("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount)
+  }`;
+}
+
+// Fetch exchange rates using the selected base currency
+async function getExchangeRates(baseCurrency) {
+  if (exchangeRatesCache[baseCurrency]) {
+    return exchangeRatesCache[baseCurrency];
+  }
+
+  const response = await fetch(
+    `https://open.er-api.com/v6/latest/${baseCurrency}`
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not fetch exchange rates.");
+  }
+
+  const data = await response.json();
+
+  if (data.result !== "success" || !data.rates) {
+    throw new Error("The exchange-rate service returned an error.");
+  }
+
+  exchangeRatesCache[baseCurrency] = data.rates;
+
+  return data.rates;
+}
+
+// Convert an amount from one currency to another
+async function convertAmount(amount, fromCurrency, toCurrency) {
+  if (fromCurrency === toCurrency) {
+    return amount;
+  }
+
+  const rates = await getExchangeRates(fromCurrency);
+  const targetRate = rates[toCurrency];
+
+  if (!Number.isFinite(targetRate) || targetRate <= 0) {
+    throw new Error(
+      `No exchange rate available for ${fromCurrency} to ${toCurrency}.`
+    );
+  }
+
+  return amount * targetRate;
+}
+
+// Identify paid invoices
+function isPaid(invoice) {
+  return invoice.status?.toLowerCase() === "paid";
+}
+
+// Outstanding includes unpaid, sent and overdue invoices
+function isOutstanding(invoice) {
+  const status = invoice.status?.toLowerCase();
+
+  return ["unpaid", "sent", "overdue"].includes(status);
+}
+
+// Identify overdue invoices using their due date
+function isOverdue(invoice) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    isOutstanding(invoice) &&
+    Boolean(invoice.dueDate) &&
+    invoice.dueDate < today
+  );
+}
+
+// Calculate a summary total in the selected currency
+async function calculateSummaryTotal(invoices, summaryType, currency) {
+  const matchingInvoices = invoices.filter((invoice) => {
+    if (summaryType === "outstanding") {
+      return isOutstanding(invoice);
+    }
+
+    if (summaryType === "overdue") {
+      return isOverdue(invoice);
+    }
+
+    if (summaryType === "paid") {
+      return isPaid(invoice);
+    }
+
+    return false;
+  });
+
+  const convertedAmounts = await Promise.all(
+    matchingInvoices.map(async (invoice) => {
+      const amount = Number(invoice.amount);
+      const invoiceCurrency = invoice.currency || "KES";
+
+      if (!Number.isFinite(amount)) {
+        return 0;
+      }
+
+      return convertAmount(amount, invoiceCurrency, currency);
+    })
+  );
+
+  return convertedAmounts.reduce((total, amount) => total + amount, 0);
+}
+
+// Update each summary card
+async function updateSummaryCards() {
+  const cards = document.querySelectorAll("[data-summary]");
+
+  await Promise.all(
+    Array.from(cards).map(async (card) => {
+      const summaryType = card.dataset.summary;
+      const select = card.querySelector(".home-currency");
+      const amountElement = card.querySelector(".card-amount");
+
+      if (!select || !amountElement) {
+        return;
+      }
+
+      const selectedCurrency = select.value;
+
+      amountElement.textContent = "Loading...";
+
+      try {
+        const total = await calculateSummaryTotal(
+          allInvoices,
+          summaryType,
+          selectedCurrency
+        );
+
+        // Don't overwrite a newer selection if the user changed currency
+        while (select.value !== selectedCurrency) {
+          return;
+        }
+
+        amountElement.textContent = formatAmount(total, selectedCurrency);
+      } catch (error) {
+        amountElement.textContent = "Rate unavailable";
+        console.error("Could not update summary card:", error);
+      }
+    })
+  );
+}
+
+// Update summary when a card's currency changes
+document.querySelectorAll(".home-currency").forEach((select) => {
+  select.addEventListener("change", updateSummaryCards);
+});
+
+// Filter invoices based on the selected button
 function getFilteredInvoices() {
   if (currentFilter === "all") {
     return allInvoices;
@@ -47,12 +182,16 @@ function getFilteredInvoices() {
     );
   }
 
+  if (currentFilter === "overdue") {
+    return allInvoices.filter(isOverdue);
+  }
+
   return allInvoices.filter(
     (invoice) => invoice.status?.toLowerCase() === currentFilter
   );
 }
 
-// Display invoices in the table
+// Render invoices in the table
 function renderInvoices() {
   const filteredInvoices = getFilteredInvoices();
 
@@ -70,7 +209,7 @@ function renderInvoices() {
   invoicesTableBody.innerHTML = filteredInvoices
     .map((invoice) => {
       const status = invoice.status?.toLowerCase() || "draft";
-      const formattedAmount = Number(invoice.amount || 0).toLocaleString();
+      const amount = Number(invoice.amount || 0);
 
       return `
         <tr>
@@ -78,7 +217,7 @@ function renderInvoices() {
           <td>${invoice.description || invoice.clientName || "N/A"}</td>
           <td>${invoice.issueDate || "N/A"}</td>
           <td>${invoice.dueDate || "N/A"}</td>
-          <td>${invoice.currency || "KES"} ${formattedAmount}</td>
+          <td>${formatAmount(amount, invoice.currency || "KES")}</td>
           <td>
             <span class="status-badge status-${status}">
               ${status.charAt(0).toUpperCase() + status.slice(1)}
@@ -91,7 +230,7 @@ function renderInvoices() {
     .join("");
 }
 
-// Fetch invoices from JSON Server
+// Load invoices from JSON Server
 async function loadInvoices() {
   try {
     invoicesTableBody.innerHTML = `
@@ -101,7 +240,9 @@ async function loadInvoices() {
     `;
 
     allInvoices = await getInvoices();
+
     renderInvoices();
+    await updateSummaryCards();
   } catch (error) {
     invoicesTableBody.innerHTML = `
       <tr>
@@ -129,5 +270,5 @@ filterButtons.forEach((button) => {
   });
 });
 
-// Load invoices once when the page starts
+// Start the dashboard
 loadInvoices();
