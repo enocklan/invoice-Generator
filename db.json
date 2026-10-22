@@ -9,7 +9,7 @@
       "dueDate": "2026-10-30",
       "amount": 45000,
       "currency": "KES",
-      "status": "overdue"
+      "status": "unpaid"
     },
     {
       "id": "2",
@@ -20,7 +20,7 @@
       "dueDate": "2026-10-25",
       "amount": 12000,
       "currency": "KES",
-      "status": "unpaid"
+      "status": "overdue"
     },
     {
       "id": "3",
@@ -31,7 +31,7 @@
       "dueDate": "2026-10-24",
       "amount": 18000,
       "currency": "KES",
-      "status": "paid"
+      "status": "overdue"
     },
     {
       "id": "4",
