@@ -36,3 +36,60 @@ filterButtons.forEach((button) => {
   });
 });
 
+
+import { getInvoices } from "./api.js";
+
+const invoicesTableBody = document.querySelector("#invoices-table-body");
+
+async function loadInvoices() {
+  try {
+    invoicesTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-message">Loading invoices...</td>
+      </tr>
+    `;
+
+    const invoices = await getInvoices();
+
+    if (invoices.length === 0) {
+      invoicesTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="table-message">
+            No invoices found. Create your first invoice.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    invoicesTableBody.innerHTML = invoices
+      .map(
+        (invoice) => `
+          <tr>
+            <td>${invoice.invoiceNumber}</td>
+            <td>${invoice.description || invoice.clientName}</td>
+            <td>${invoice.issueDate}</td>
+            <td>${invoice.dueDate}</td>
+            <td>${invoice.currency || "KES"} ${Number(invoice.amount).toLocaleString()}</td>
+            <td>${invoice.status}</td>
+            <td>Actions coming soon</td>
+          </tr>
+        `
+      )
+      .join("");
+  } catch (error) {
+    invoicesTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-message">
+          Could not load invoices. Check that JSON Server is running.
+        </td>
+      </tr>
+    `;
+
+    console.error(error);
+  }
+}
+
+loadInvoices();
+
+
