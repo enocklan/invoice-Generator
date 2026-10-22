@@ -1,4 +1,6 @@
 
+import { getInvoices } from "./api.js";
+
 const currencySymbols = {
   KES: "KSh",
   USD: "$",
@@ -6,11 +8,15 @@ const currencySymbols = {
   AUD: "A$"
 };
 
+// Home currency selectors on the summary cards
 document.querySelectorAll(".home-currency").forEach((select) => {
   select.addEventListener("change", () => {
     const currency = select.value;
     const card = select.closest(".summary-card");
-    const amountElement = card.querySelector(".card-amount");
+    const amountElement = card?.querySelector(".card-amount");
+
+    if (!amountElement) return;
+
     const amount = Number(amountElement.dataset.amount);
 
     const formattedAmount = new Intl.NumberFormat("en-KE", {
@@ -18,29 +24,74 @@ document.querySelectorAll(".home-currency").forEach((select) => {
     }).format(amount);
 
     amountElement.textContent =
-      `${currencySymbols[currency]} ${formattedAmount}`;
+      `${currencySymbols[currency] || currency} ${formattedAmount}`;
   });
 });
 
+// Invoice table and filters
+const invoicesTableBody = document.querySelector("#invoices-table-body");
 const filterButtons = document.querySelectorAll(".filter-btn");
 
-filterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    // Remove the active class from every filter.
-    filterButtons.forEach((filterButton) => {
-      filterButton.classList.remove("active");
-    });
+let allInvoices = [];
+let currentFilter = "all";
 
-    // Highlight the filter that was clicked.
-    button.classList.add("active");
-  });
-});
+// Get invoices matching the selected filter
+function getFilteredInvoices() {
+  if (currentFilter === "all") {
+    return allInvoices;
+  }
 
+  if (currentFilter === "unpaid") {
+    return allInvoices.filter((invoice) =>
+      ["unpaid", "sent"].includes(invoice.status?.toLowerCase())
+    );
+  }
 
-import { getInvoices } from "./api.js";
+  return allInvoices.filter(
+    (invoice) => invoice.status?.toLowerCase() === currentFilter
+  );
+}
 
-const invoicesTableBody = document.querySelector("#invoices-table-body");
+// Display invoices in the table
+function renderInvoices() {
+  const filteredInvoices = getFilteredInvoices();
 
+  if (filteredInvoices.length === 0) {
+    invoicesTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-message">
+          No invoices found for this filter.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  invoicesTableBody.innerHTML = filteredInvoices
+    .map((invoice) => {
+      const status = invoice.status?.toLowerCase() || "draft";
+      const formattedAmount = Number(invoice.amount || 0).toLocaleString();
+
+      return `
+        <tr>
+          <td>${invoice.invoiceNumber || "N/A"}</td>
+          <td>${invoice.description || invoice.clientName || "N/A"}</td>
+          <td>${invoice.issueDate || "N/A"}</td>
+          <td>${invoice.dueDate || "N/A"}</td>
+          <td>${invoice.currency || "KES"} ${formattedAmount}</td>
+          <td>
+            <span class="status-badge status-${status}">
+              ${status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+          </td>
+          <td>Actions coming soon</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// Fetch invoices from JSON Server
 async function loadInvoices() {
   try {
     invoicesTableBody.innerHTML = `
@@ -49,34 +100,8 @@ async function loadInvoices() {
       </tr>
     `;
 
-    const invoices = await getInvoices();
-
-    if (invoices.length === 0) {
-      invoicesTableBody.innerHTML = `
-        <tr>
-          <td colspan="7" class="table-message">
-            No invoices found. Create your first invoice.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    invoicesTableBody.innerHTML = invoices
-      .map(
-        (invoice) => `
-          <tr>
-            <td>${invoice.invoiceNumber}</td>
-            <td>${invoice.description || invoice.clientName}</td>
-            <td>${invoice.issueDate}</td>
-            <td>${invoice.dueDate}</td>
-            <td>${invoice.currency || "KES"} ${Number(invoice.amount).toLocaleString()}</td>
-            <td>${invoice.status}</td>
-            <td>Actions coming soon</td>
-          </tr>
-        `
-      )
-      .join("");
+    allInvoices = await getInvoices();
+    renderInvoices();
   } catch (error) {
     invoicesTableBody.innerHTML = `
       <tr>
@@ -86,10 +111,23 @@ async function loadInvoices() {
       </tr>
     `;
 
-    console.error(error);
+    console.error("Error loading invoices:", error);
   }
 }
 
+// Handle filter button clicks
+filterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    filterButtons.forEach((filterButton) => {
+      filterButton.classList.remove("active");
+    });
+
+    button.classList.add("active");
+    currentFilter = button.dataset.filter;
+
+    renderInvoices();
+  });
+});
+
+// Load invoices once when the page starts
 loadInvoices();
-
-
