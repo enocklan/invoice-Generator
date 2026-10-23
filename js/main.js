@@ -1,5 +1,6 @@
 
 import { getInvoices, updateInvoiceStatus } from "./api.js";
+import { validateInvoice } from "./validation.js";
 
 const currencySymbols = {
   KES: "KSh",
@@ -383,6 +384,113 @@ filterButtons.forEach((button) => {
     renderInvoices();
   });
 });
+
+function setupCreateInvoiceForm() {
+  const form = document.querySelector("#create-invoice-form");
+  const section = document.querySelector("#create-invoice-section");
+  const feedback = document.querySelector("#create-invoice-feedback");
+
+  if (!form || !section) {
+    console.error("Create invoice form or section was not found.");
+    return;
+  }
+
+  const errorFields = {
+    invoiceNumber: "invoice-number-error",
+    currency: "invoice-currency-error",
+    issueDate: "issue-date-error",
+    dueDate: "due-date-error",
+    clientName: "client-name-error",
+    clientEmail: "client-email-error",
+    description: "item-description-error",
+    quantity: "item-quantity-error",
+    unitPrice: "item-price-error",
+    taxRate: "tax-rate-error",
+    discount: "discount-error"
+  };
+
+  function clearErrors() {
+    Object.values(errorFields).forEach((id) => {
+      const errorElement = document.getElementById(id);
+
+      if (errorElement) {
+        errorElement.textContent = "";
+      }
+    });
+
+    if (feedback) {
+      feedback.textContent = "";
+    }
+  }
+
+  function closeForm() {
+    section.hidden = true;
+    form.reset();
+    clearErrors();
+  }
+
+  // Open the form from the existing New Invoice button.
+  const newInvoiceButtons = document.querySelectorAll(
+    "#new-invoice-btn, #create-invoice-btn, [data-action='create-invoice']"
+  );
+
+  newInvoiceButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      section.hidden = false;
+      section.scrollIntoView({ behavior: "smooth" });
+    });
+  });
+
+  // Close the form from either Cancel button.
+  document
+    .querySelectorAll("#cancel-invoice-btn, #cancel-invoice-btn-bottom")
+    .forEach((button) => {
+      button.addEventListener("click", closeForm);
+    });
+
+  // Validate the form when submitted.
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearErrors();
+
+    const formData = new FormData(form);
+
+    const invoice = Object.fromEntries(formData.entries());
+
+    const errors = validateInvoice(invoice);
+    const errorMessages = Object.values(errors);
+
+    Object.entries(errors).forEach(([field, message]) => {
+      const errorId = errorFields[field];
+      const errorElement = errorId
+        ? document.getElementById(errorId)
+        : null;
+
+      if (errorElement) {
+        errorElement.textContent = message;
+      }
+    });
+
+    if (errorMessages.length > 0) {
+      if (feedback) {
+        feedback.textContent =
+          "Please correct the errors before continuing.";
+      }
+
+      return;
+    }
+
+    if (feedback) {
+      feedback.textContent =
+        "Validation successful! The invoice is ready to be saved.";
+    }
+
+    console.log("Validated invoice:", invoice);
+  });
+}
+
+setupCreateInvoiceForm();
+
 
 // Start the dashboard
 loadInvoices();
