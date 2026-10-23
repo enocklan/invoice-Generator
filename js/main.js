@@ -1,11 +1,21 @@
 
-import { getInvoices, updateInvoiceStatus } from "./api.js";
+import {
+  getInvoices,
+  updateInvoiceStatus,
+  createInvoice
+} from "./api.js";
+
 import { validateInvoice } from "./validation.js";
+
+// --------------------------------------------------
+// Application state
+// --------------------------------------------------
 
 const currencySymbols = {
   KES: "KSh",
   USD: "$",
   EUR: "€",
+  GBP: "£",
   AUD: "A$"
 };
 
@@ -17,24 +27,56 @@ let currentFilter = "all";
 
 const exchangeRatesCache = {};
 
-// Format amounts consistently
-function formatAmount(amount, currency) {
-  return `${currencySymbols[currency] || currency} ${
-    new Intl.NumberFormat("en-KE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount)
-  }`;
+// --------------------------------------------------
+// HTML safety helper
+// --------------------------------------------------
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => {
+    const replacements = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    };
+
+    return replacements[character];
+  });
 }
 
-// Fetch exchange rates using the selected base currency
+// --------------------------------------------------
+// Currency formatting
+// --------------------------------------------------
+
+function formatAmount(amount, currency = "KES") {
+  const numericAmount = Number(amount);
+
+  if (!Number.isFinite(numericAmount)) {
+    return `${currencySymbols[currency] || currency} 0.00`;
+  }
+
+  const formattedAmount = new Intl.NumberFormat("en-KE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(numericAmount);
+
+  return `${currencySymbols[currency] || currency} ${formattedAmount}`;
+}
+
+// --------------------------------------------------
+// Exchange rates
+// --------------------------------------------------
+
 async function getExchangeRates(baseCurrency) {
-  if (exchangeRatesCache[baseCurrency]) {
-    return exchangeRatesCache[baseCurrency];
+  const currency = String(baseCurrency).trim().toUpperCase();
+
+  if (exchangeRatesCache[currency]) {
+    return exchangeRatesCache[currency];
   }
 
   const response = await fetch(
-    `https://open.er-api.com/v6/latest/${baseCurrency}`
+    `https://open.er-api.com/v6/latest/${encodeURIComponent(currency)}`
   );
 
   if (!response.ok) {
@@ -47,65 +89,81 @@ async function getExchangeRates(baseCurrency) {
     throw new Error("The exchange-rate service returned an error.");
   }
 
-  exchangeRatesCache[baseCurrency] = data.rates;
+  exchangeRatesCache[currency] = data.rates;
 
   return data.rates;
 }
 
-// Convert an amount from one currency to another
 async function convertAmount(amount, fromCurrency, toCurrency) {
-  if (fromCurrency === toCurrency) {
-    return amount;
+  const numericAmount = Number(amount);
+  const from = String(fromCurrency || "KES").toUpperCase();
+  const to = String(toCurrency || "KES").toUpperCase();
+
+  if (!Number.isFinite(numericAmount)) {
+    return null;
   }
 
-  const rates = await getExchangeRates(fromCurrency);
-  const targetRate = rates[toCurrency];
+  if (from === to) {
+    return numericAmount;
+  }
+
+  const rates = await getExchangeRates(from);
+  const targetRate = Number(rates[to]);
 
   if (!Number.isFinite(targetRate) || targetRate <= 0) {
     throw new Error(
-      `No exchange rate available for ${fromCurrency} to ${toCurrency}.`
+      `No exchange rate available for ${from} to ${to}.`
     );
   }
 
-  return amount * targetRate;
+  return numericAmount * targetRate;
 }
 
-// Identify paid invoices
+// --------------------------------------------------
+// Invoice status helpers
+// --------------------------------------------------
+
+function getStatus(invoice) {
+  return String(invoice.status || "draft").toLowerCase();
+}
+
 function isPaid(invoice) {
-  return invoice.status?.toLowerCase() === "paid";
+  return getStatus(invoice) === "paid";
 }
 
-// Outstanding includes unpaid, sent and overdue invoices
-function isOutstanding(invoice) {
-  const status = invoice.status?.toLowerCase();
-
-  return ["unpaid", "sent", "overdue"].includes(status);
-}
-
-// Identify overdue invoices
 function isOverdue(invoice) {
-  const status = invoice.status?.toLowerCase();
+  const status = getStatus(invoice);
 
-  // An invoice explicitly marked overdue always counts as overdue
+  if (status === "paid" || status === "draft") {
+    return false;
+  }
+
   if (status === "overdue") {
     return true;
   }
 
-  // Otherwise, automatically detect overdue unpaid or sent invoices
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  const todayString = `${year}-${month}-${day}`;
+  if (!["unpaid", "sent"].includes(status) || !invoice.dueDate) {
+    return false;
+  }
 
-  return (
-    ["unpaid", "sent"].includes(status) &&
-    Boolean(invoice.dueDate) &&
-    invoice.dueDate < todayString
-  );
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(`${invoice.dueDate}T00:00:00`);
+
+  return !Number.isNaN(dueDate.getTime()) && dueDate < today;
 }
 
-// Calculate a summary total in the selected currency
+function isOutstanding(invoice) {
+  const status = getStatus(invoice);
+
+  return ["unpaid", "overdue"].includes(status);
+}
+
+// --------------------------------------------------
+// Calculate dashboard totals
+// --------------------------------------------------
+
 async function calculateSummaryTotal(invoices, summaryType, currency) {
   const matchingInvoices = invoices.filter((invoice) => {
     if (summaryType === "outstanding") {
@@ -136,24 +194,33 @@ async function calculateSummaryTotal(invoices, summaryType, currency) {
     })
   );
 
-  return convertedAmounts.reduce((total, amount) => total + amount, 0);
+  return convertedAmounts.reduce((total, amount) => {
+    return total + (amount ?? 0);
+  }, 0);
 }
 
-// Update each summary card
+// --------------------------------------------------
+// Update each summary card independently
+// --------------------------------------------------
+
 async function updateSummaryCards() {
   const cards = document.querySelectorAll("[data-summary]");
 
   await Promise.all(
     Array.from(cards).map(async (card) => {
       const summaryType = card.dataset.summary;
-      const select = card.querySelector(".home-currency");
+      const currencySelect = card.querySelector(".home-currency");
       const amountElement = card.querySelector(".card-amount");
 
-      if (!select || !amountElement) {
+      if (!currencySelect || !amountElement) {
+        console.warn(
+          `Check the HTML for the ${summaryType} card: ` +
+          "it needs .home-currency and .card-amount elements."
+        );
         return;
       }
 
-      const selectedCurrency = select.value;
+      const selectedCurrency = currencySelect.value || "KES";
 
       amountElement.textContent = "Loading...";
 
@@ -164,34 +231,44 @@ async function updateSummaryCards() {
           selectedCurrency
         );
 
-        // Do not display a result for an outdated currency selection
-        if (select.value !== selectedCurrency) {
+        // Ignore results if the user selected another currency meanwhile.
+        if (currencySelect.value !== selectedCurrency) {
           return;
         }
 
-        amountElement.textContent = formatAmount(total, selectedCurrency);
+        amountElement.textContent = formatAmount(
+          total,
+          selectedCurrency
+        );
       } catch (error) {
+        console.error(
+          `Could not calculate the ${summaryType} total:`,
+          error
+        );
+
         amountElement.textContent = "Rate unavailable";
-        console.error("Could not update summary card:", error);
       }
     })
   );
 }
 
-// Update summary when a card's currency changes
+// Recalculate the relevant totals when a currency changes.
 document.querySelectorAll(".home-currency").forEach((select) => {
   select.addEventListener("change", updateSummaryCards);
 });
 
-// Filter invoices based on the selected button
+// --------------------------------------------------
+// Invoice filters
+// --------------------------------------------------
+
 function getFilteredInvoices() {
   if (currentFilter === "all") {
     return allInvoices;
   }
 
-  if (currentFilter === "unpaid") {
+  if (currentFilter === "unpaid" || currentFilter === "sent") {
     return allInvoices.filter((invoice) =>
-      ["unpaid", "sent"].includes(invoice.status?.toLowerCase())
+      ["unpaid", "sent"].includes(getStatus(invoice))
     );
   }
 
@@ -200,12 +277,19 @@ function getFilteredInvoices() {
   }
 
   return allInvoices.filter(
-    (invoice) => invoice.status?.toLowerCase() === currentFilter
+    (invoice) => getStatus(invoice) === currentFilter
   );
 }
 
-// Render invoices in the table
+// --------------------------------------------------
+// Render invoices
+// --------------------------------------------------
+
 function renderInvoices() {
+  if (!invoicesTableBody) {
+    return;
+  }
+
   const filteredInvoices = getFilteredInvoices();
 
   if (filteredInvoices.length === 0) {
@@ -219,57 +303,70 @@ function renderInvoices() {
     return;
   }
 
-  invoicesTableBody.innerHTML = filteredInvoices
-    .map((invoice) => {
-      const status = (invoice.status || "draft").toLowerCase();
-      const amount = Number(invoice.amount || 0);
-      const invoiceId = String(invoice.id);
+  invoicesTableBody.innerHTML = filteredInvoices.map((invoice) => {
+    const status = getStatus(invoice);
+    const invoiceId = escapeHTML(invoice.id);
+    const invoiceNumber = escapeHTML(invoice.invoiceNumber || "N/A");
+    const description = escapeHTML(
+      invoice.description || invoice.clientName || "N/A"
+    );
+    const issueDate = escapeHTML(invoice.issueDate || "N/A");
+    const dueDate = escapeHTML(invoice.dueDate || "N/A");
+    const amount = formatAmount(
+      invoice.amount,
+      invoice.currency || "KES"
+    );
 
-      return `
-        <tr>
-          <td>${invoice.invoiceNumber || "N/A"}</td>
-          <td>${invoice.description || invoice.clientName || "N/A"}</td>
-          <td>${invoice.issueDate || "N/A"}</td>
-          <td>${invoice.dueDate || "N/A"}</td>
-          <td>${formatAmount(amount, invoice.currency || "KES")}</td>
-          <td>
-            <span class="status-badge status-${status}">
-              ${status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-          </td>
-          <td>
-            <label class="sr-only" for="status-${invoiceId}">
-              Change status for ${invoice.invoiceNumber || "invoice"}
-            </label>
+    const statusLabel =
+      status.charAt(0).toUpperCase() + status.slice(1);
 
-            <select
-              class="invoice-status-select"
-              id="status-${invoiceId}"
-              data-invoice-id="${invoiceId}"
-              aria-label="Change invoice status"
-            >
-              <option value="draft" ${status === "draft" ? "selected" : ""}>
-                Draft
-              </option>
-              <option value="unpaid" ${status === "unpaid" ? "selected" : ""}>
-                Unpaid
-              </option>
-              <option value="paid" ${status === "paid" ? "selected" : ""}>
-                Paid
-              </option>
-              <option value="overdue" ${status === "overdue" ? "selected" : ""}>
-                Overdue
-              </option>
-            </select>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+    return `
+      <tr>
+        <td>${invoiceNumber}</td>
+        <td>${description}</td>
+        <td>${issueDate}</td>
+        <td>${dueDate}</td>
+        <td>${escapeHTML(amount)}</td>
+        <td>
+          <span class="status-badge status-${escapeHTML(status)}">
+            ${escapeHTML(statusLabel)}
+          </span>
+        </td>
+        <td>
+          <label class="sr-only" for="status-${invoiceId}">
+            Change status for ${invoiceNumber}
+          </label>
+
+          <select
+            class="invoice-status-select"
+            id="status-${invoiceId}"
+            data-invoice-id="${invoiceId}"
+            aria-label="Change status for ${invoiceNumber}"
+          >
+            <option value="draft" ${status === "draft" ? "selected" : ""}>
+              Draft
+            </option>
+            <option value="unpaid" ${status === "unpaid" ? "selected" : ""}>
+              Unpaid
+            </option>
+            <option value="paid" ${status === "paid" ? "selected" : ""}>
+              Paid
+            </option>
+            <option value="overdue" ${status === "overdue" ? "selected" : ""}>
+              Overdue
+            </option>
+          </select>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
-// Show feedback to the user
-function showFeedback(message, type) {
+// --------------------------------------------------
+// User feedback
+// --------------------------------------------------
+
+function showFeedback(message, type = "info") {
   const feedback = document.querySelector("#invoice-feedback");
 
   if (!feedback) {
@@ -278,9 +375,14 @@ function showFeedback(message, type) {
 
   feedback.textContent = message;
   feedback.className = `invoice-feedback ${type}`;
+  feedback.setAttribute("role", "status");
+  feedback.setAttribute("aria-live", "polite");
 }
 
-// Handle invoice status changes
+// --------------------------------------------------
+// Change invoice status using PATCH
+// --------------------------------------------------
+
 async function handleStatusChange(event) {
   const select = event.target;
 
@@ -291,78 +393,93 @@ async function handleStatusChange(event) {
   const invoiceId = select.dataset.invoiceId;
   const newStatus = select.value;
 
-  const previousInvoice = allInvoices.find(
-    (invoice) => String(invoice.id) === String(invoiceId)
+  const invoice = allInvoices.find(
+    (item) => String(item.id) === String(invoiceId)
   );
 
-  if (!previousInvoice) {
+  if (!invoice) {
     showFeedback("Could not find this invoice.", "error");
     renderInvoices();
     return;
   }
 
-  const previousStatus = (previousInvoice.status || "draft").toLowerCase();
+  const previousStatus = getStatus(invoice);
 
   if (newStatus === previousStatus) {
     return;
   }
 
   select.disabled = true;
-  showFeedback("Updating invoice status...", "success");
+  showFeedback("Updating invoice status...", "info");
 
   try {
-    // Save the status to JSON Server using PATCH
-    const updatedInvoice = await updateInvoiceStatus(invoiceId, newStatus);
+    const updatedInvoice = await updateInvoiceStatus(
+      invoiceId,
+      newStatus
+    );
 
-    // Update local data only after the API request succeeds
-    previousInvoice.status = (
-      updatedInvoice.status || newStatus
-    ).toLowerCase();
+    invoice.status = getStatus(updatedInvoice);
 
-    // Refresh the table and summary cards
     renderInvoices();
     await updateSummaryCards();
 
-    showFeedback("Invoice status updated successfully.", "success");
+    showFeedback(
+      `Invoice ${invoice.invoiceNumber} status updated successfully.`,
+      "success"
+    );
   } catch (error) {
     console.error("Could not update invoice status:", error);
 
-    // Restore the previous selection when saving fails
-    select.value = previousStatus;
-
     showFeedback(
-      "Could not update invoice status. Please check JSON Server and try again.",
+      "Could not update invoice status. Check JSON Server and try again.",
       "error"
     );
+
+    renderInvoices();
   }
 }
 
-// Listen for status changes on the table
-invoicesTableBody.addEventListener("change", handleStatusChange);
+if (invoicesTableBody) {
+  invoicesTableBody.addEventListener("change", handleStatusChange);
+}
 
-// Load invoices from JSON Server
+// --------------------------------------------------
+// Load invoices using GET
+// --------------------------------------------------
+
 async function loadInvoices() {
-  try {
+  if (invoicesTableBody) {
     invoicesTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="table-message">Loading invoices...</td>
+        <td colspan="7" class="table-message">
+          Loading invoices...
+        </td>
       </tr>
     `;
+  }
 
+  try {
     allInvoices = await getInvoices();
 
     renderInvoices();
     await updateSummaryCards();
-  } catch (error) {
-    invoicesTableBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="table-message">
-          Could not load invoices. Check that JSON Server is running.
-        </td>
-      </tr>
-    `;
 
+    showFeedback(
+      `${allInvoices.length} invoice(s) loaded.`,
+      "success"
+    );
+  } catch (error) {
     console.error("Error loading invoices:", error);
+
+    if (invoicesTableBody) {
+      invoicesTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="table-message">
+            Could not load invoices. Check that JSON Server is running.
+          </td>
+        </tr>
+      `;
+    }
 
     showFeedback(
       "Could not load invoices. Please check your API connection.",
@@ -371,19 +488,28 @@ async function loadInvoices() {
   }
 }
 
-// Handle filter button clicks
+// --------------------------------------------------
+// Filter button event listeners
+// --------------------------------------------------
+
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    filterButtons.forEach((filterButton) => {
-      filterButton.classList.remove("active");
-    });
+    currentFilter = button.dataset.filter || "all";
 
-    button.classList.add("active");
-    currentFilter = button.dataset.filter;
+    filterButtons.forEach((filterButton) => {
+      const active = filterButton === button;
+
+      filterButton.classList.toggle("active", active);
+      filterButton.setAttribute("aria-pressed", String(active));
+    });
 
     renderInvoices();
   });
 });
+
+// --------------------------------------------------
+// Create invoice form
+// --------------------------------------------------
 
 function setupCreateInvoiceForm() {
   const form = document.querySelector("#create-invoice-form");
@@ -391,13 +517,14 @@ function setupCreateInvoiceForm() {
   const feedback = document.querySelector("#create-invoice-feedback");
 
   if (!form || !section) {
-    console.error("Create invoice form or section was not found.");
+    console.warn("Create invoice form or section was not found.");
     return;
   }
 
   const errorFields = {
     invoiceNumber: "invoice-number-error",
     currency: "invoice-currency-error",
+    status: "invoice-status-error",
     issueDate: "issue-date-error",
     dueDate: "due-date-error",
     clientName: "client-name-error",
@@ -423,42 +550,49 @@ function setupCreateInvoiceForm() {
     }
   }
 
+  function openForm() {
+    section.hidden = false;
+    section.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+    document.querySelector("#invoice-number")?.focus();
+  }
+
   function closeForm() {
     section.hidden = true;
     form.reset();
     clearErrors();
   }
 
-  // Open the form from the existing New Invoice button.
-  const newInvoiceButtons = document.querySelectorAll(
+  document.querySelectorAll(
     "#new-invoice-btn, #create-invoice-btn, [data-action='create-invoice']"
-  );
-
-  newInvoiceButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      section.hidden = false;
-      section.scrollIntoView({ behavior: "smooth" });
-    });
+  ).forEach((button) => {
+    button.addEventListener("click", openForm);
   });
 
-  // Close the form from either Cancel button.
-  document
-    .querySelectorAll("#cancel-invoice-btn, #cancel-invoice-btn-bottom")
-    .forEach((button) => {
-      button.addEventListener("click", closeForm);
-    });
+  document.querySelectorAll(
+    "#cancel-invoice-btn, #cancel-invoice-btn-bottom"
+  ).forEach((button) => {
+    button.addEventListener("click", closeForm);
+  });
 
-  // Validate the form when submitted.
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     clearErrors();
 
     const formData = new FormData(form);
-
     const invoice = Object.fromEntries(formData.entries());
 
+    // The Save as Draft button always creates a draft.
+    const submitAction = event.submitter?.value;
+
+    if (submitAction === "draft") {
+      invoice.status = "draft";
+    }
+
     const errors = validateInvoice(invoice);
-    const errorMessages = Object.values(errors);
 
     Object.entries(errors).forEach(([field, message]) => {
       const errorId = errorFields[field];
@@ -471,7 +605,7 @@ function setupCreateInvoiceForm() {
       }
     });
 
-    if (errorMessages.length > 0) {
+    if (Object.keys(errors).length > 0) {
       if (feedback) {
         feedback.textContent =
           "Please correct the errors before continuing.";
@@ -480,17 +614,93 @@ function setupCreateInvoiceForm() {
       return;
     }
 
+    const quantity = Number(invoice.quantity);
+    const unitPrice = Number(invoice.unitPrice);
+    const taxRate = Number(invoice.taxRate);
+    const discount = Number(invoice.discount);
+
+    const subtotal = quantity * unitPrice;
+    const taxableAmount = subtotal - discount;
+    const taxAmount = taxableAmount * (taxRate / 100);
+    const totalAmount = taxableAmount + taxAmount;
+
+    const invoiceToSave = {
+      invoiceNumber: invoice.invoiceNumber.trim(),
+      clientName: invoice.clientName.trim(),
+      clientEmail: invoice.clientEmail.trim(),
+      description: invoice.description.trim(),
+      issueDate: invoice.issueDate,
+      dueDate: invoice.dueDate,
+      currency: invoice.currency,
+      status: invoice.status,
+      quantity,
+      unitPrice,
+      subtotal: Number(subtotal.toFixed(2)),
+      discount: Number(discount.toFixed(2)),
+      taxRate,
+      taxAmount: Number(taxAmount.toFixed(2)),
+      amount: Number(totalAmount.toFixed(2)),
+      paymentTerms: invoice.paymentTerms,
+      notes: (invoice.notes || "").trim()
+    };
+
+    const submitButtons = form.querySelectorAll(
+      'button[type="submit"]'
+    );
+
+    submitButtons.forEach((button) => {
+      button.disabled = true;
+    });
+
     if (feedback) {
-      feedback.textContent =
-        "Validation successful! The invoice is ready to be saved.";
+      feedback.textContent = "Saving invoice...";
     }
 
-    console.log("Validated invoice:", invoice);
+    try {
+      // POST creates a new invoice in JSON Server.
+      const savedInvoice = await createInvoice(invoiceToSave);
+
+      allInvoices.push(savedInvoice);
+
+      // Show the newly created invoice immediately.
+      currentFilter = "all";
+
+      filterButtons.forEach((button) => {
+        const active = (button.dataset.filter || "all") === "all";
+
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+
+      renderInvoices();
+      await updateSummaryCards();
+
+      showFeedback(
+        `Invoice ${savedInvoice.invoiceNumber} created successfully.`,
+        "success"
+      );
+
+      form.reset();
+      clearErrors();
+      section.hidden = true;
+    } catch (error) {
+      console.error("Could not create invoice:", error);
+
+      if (feedback) {
+        feedback.textContent =
+          "Could not save the invoice. Check that JSON Server is running and try again.";
+      }
+    } finally {
+      submitButtons.forEach((button) => {
+        button.disabled = false;
+      });
+    }
   });
 }
 
+// --------------------------------------------------
+// Start the application
+// --------------------------------------------------
+
 setupCreateInvoiceForm();
-
-
-// Start the dashboard
 loadInvoices();
