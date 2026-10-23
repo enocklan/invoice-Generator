@@ -49,6 +49,7 @@ export function validateInvoice(invoice) {
   const unitPrice = Number(invoice.unitPrice);
   const taxRate = Number(invoice.taxRate);
   const discount = Number(invoice.discount);
+  const validStatuses = ["draft", "unpaid", "paid", "overdue"];
 
   if (
     invoice.quantity === "" ||
@@ -93,6 +94,12 @@ export function validateInvoice(invoice) {
 
   if (!invoice.paymentTerms?.trim()) {
     errors.paymentTerms = "Please select payment terms.";
+  }
+
+ 
+
+  if (!validStatuses.includes(invoice.status)) {
+  errors.status = "Please select a valid invoice status.";
   }
 
   return errors;
