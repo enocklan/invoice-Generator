@@ -5,15 +5,17 @@
   "main": "index.js",
   "scripts": {
   "dev": "vite",
-  "server": "json-server db.json --port 3000",
   "build": "vite build",
-  "test": "echo \"Error: no test specified\" && exit 1"
-},
+  "server": "json-server --watch db.json",
+  "test": "vitest"
+
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "json-server": "^1.0.0-beta.15",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
