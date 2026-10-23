@@ -213,7 +213,6 @@ img {
   width: 100%;
   min-width: 0;
 }
-
 .summary-card {
   width: 100%;
   min-width: 0;
@@ -226,8 +225,17 @@ img {
   transition: box-shadow 0.2s;
 }
 
+
+.summary-card {
+  transition: all 0.3s ease-in-out;
+}
+
+
 .summary-card:hover {
-  box-shadow: 0 4px 12px rgba(32, 43, 59, 0.08);
+  border: 1px solid #2563EB; 
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); 
+
 }
 
 /* Card headings */
