@@ -2,7 +2,8 @@
 import {
   getInvoices,
   updateInvoiceStatus,
-  createInvoice
+  createInvoice,
+  deleteInvoice
 } from "./api.js";
 
 import { validateInvoice } from "./validation.js";
@@ -157,7 +158,7 @@ function isOverdue(invoice) {
 function isOutstanding(invoice) {
   const status = getStatus(invoice);
 
-  return ["unpaid", "overdue"].includes(status);
+  return ["unpaid", "sent", "overdue"].includes(status);
 }
 
 // --------------------------------------------------
@@ -356,6 +357,14 @@ function renderInvoices() {
               Overdue
             </option>
           </select>
+
+          <button
+            type="button"
+            class="delete-invoice-btn"
+            data-invoice-id="${invoiceId}"
+          >
+            Delete
+          </button>
         </td>
       </tr>
     `;
@@ -439,8 +448,64 @@ async function handleStatusChange(event) {
   }
 }
 
+// --------------------------------------------------
+// Delete invoice using DELETE
+// --------------------------------------------------
+
+async function handleDeleteInvoice(event) {
+  const button = event.target.closest(".delete-invoice-btn");
+
+  if (!button) {
+    return;
+  }
+
+  const invoiceId = button.dataset.invoiceId;
+
+  const invoice = allInvoices.find(
+    (item) => String(item.id) === String(invoiceId)
+  );
+
+  if (!invoice) {
+    showFeedback("Could not find this invoice.", "error");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Are you sure you want to delete invoice ${invoice.invoiceNumber || invoice.id}?`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    await deleteInvoice(invoiceId);
+
+    allInvoices = allInvoices.filter(
+      (item) => String(item.id) !== String(invoiceId)
+    );
+
+    renderInvoices();
+    await updateSummaryCards();
+
+    showFeedback("Invoice deleted successfully.", "success");
+  } catch (error) {
+    console.error("Could not delete invoice:", error);
+
+    showFeedback(
+      "Could not delete invoice. Check JSON Server and try again.",
+      "error"
+    );
+
+    renderInvoices();
+  }
+}
+
 if (invoicesTableBody) {
   invoicesTableBody.addEventListener("change", handleStatusChange);
+  invoicesTableBody.addEventListener("click", handleDeleteInvoice);
 }
 
 // --------------------------------------------------

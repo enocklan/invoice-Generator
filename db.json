@@ -141,26 +141,6 @@
       "id": "6wWqE77pLmQ"
     },
     {
-      "invoiceNumber": "INV-009",
-      "clientName": "BlueSky Agency",
-      "clientEmail": "finance@bluesky.co.ke",
-      "description": "Brand Redesign",
-      "issueDate": "2026-10-21",
-      "dueDate": "2026-11-28",
-      "currency": "KES",
-      "status": "unpaid",
-      "quantity": 1,
-      "unitPrice": 12000,
-      "subtotal": 12000,
-      "discount": 0,
-      "taxRate": 0,
-      "taxAmount": 0,
-      "amount": 12000,
-      "paymentTerms": "30 days",
-      "notes": "Awaiting approval",
-      "id": "1kLmN88xVbC"
-    },
-    {
       "invoiceNumber": "INV-010",
       "clientName": "Prime Foods",
       "clientEmail": "accounts@primefoods.com",

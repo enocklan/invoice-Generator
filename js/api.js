@@ -46,3 +46,21 @@ export async function createInvoice(invoice) {
 
   return response.json();
 }
+
+
+
+// Delete an invoice using DELETE//
+export async function deleteInvoice(id) {
+  const response = await fetch(
+    `http://localhost:3000/invoices/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not delete invoice.");
+  }
+
+  return true;
+}
