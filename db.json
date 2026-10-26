@@ -199,6 +199,26 @@
       "paymentTerms": "30 days",
       "notes": "thee",
       "id": "QVPwnoKpebg"
+    },
+    {
+      "invoiceNumber": "INV-15",
+      "clientName": "Telan Advocates",
+      "clientEmail": "telan@gmail.com",
+      "description": "Website development",
+      "issueDate": "2026-10-26",
+      "dueDate": "2026-11-20",
+      "currency": "USD",
+      "status": "unpaid",
+      "quantity": 1,
+      "unitPrice": 400,
+      "subtotal": 400,
+      "discount": 1,
+      "taxRate": 3,
+      "taxAmount": 11.97,
+      "amount": 410.97,
+      "paymentTerms": "30 days",
+      "notes": "check url sent on email",
+      "id": "5GcBXwq4adQ"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"
