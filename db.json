@@ -159,6 +159,26 @@
       "paymentTerms": "15 days",
       "notes": "Fully paid via bank transfer",
       "id": "5jHfZ22dRtK"
+    },
+    {
+      "invoiceNumber": "INV-011",
+      "clientName": "Ayla Studios",
+      "clientEmail": "aylastudios@gmail.com",
+      "description": "Video editing",
+      "issueDate": "2026-10-24",
+      "dueDate": "2026-11-06",
+      "currency": "KES",
+      "status": "unpaid",
+      "quantity": 1,
+      "unitPrice": 10000,
+      "subtotal": 10000,
+      "discount": 0,
+      "taxRate": 10,
+      "taxAmount": 1000,
+      "amount": 11000,
+      "paymentTerms": "30 days",
+      "notes": "Check your email",
+      "id": "OyS7uEGOz2s"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"
