@@ -4,11 +4,13 @@
   "description": "Invoice Generator web application",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "server": "json-server --watch db.json",
-    "test": "vitest"
-  },
+  "dev": "vite",
+  "build": "vite build",
+  "server": "json-server --watch db.json",
+  "start": "json-server db.json --host 0.0.0.0 --port ${PORT:-3000}",
+  "test": "vitest"
+},
+  
   "keywords": [],
   "author": "",
   "license": "ISC",

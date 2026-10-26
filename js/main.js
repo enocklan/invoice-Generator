@@ -8,9 +8,7 @@ import {
 
 import { validateInvoice } from "./validation.js";
 
-// --------------------------------------------------
-// Application state
-// --------------------------------------------------
+// Application state//
 
 const currencySymbols = {
   KES: "KSh",
@@ -28,9 +26,7 @@ let currentFilter = "all";
 
 const exchangeRatesCache = {};
 
-// --------------------------------------------------
-// HTML safety helper
-// --------------------------------------------------
+// HTML safety helper//
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -46,9 +42,8 @@ function escapeHTML(value) {
   });
 }
 
-// --------------------------------------------------
-// Currency formatting
-// --------------------------------------------------
+
+// Currency formatting..//
 
 function formatAmount(amount, currency = "KES") {
   const numericAmount = Number(amount);
@@ -65,9 +60,8 @@ function formatAmount(amount, currency = "KES") {
   return `${currencySymbols[currency] || currency} ${formattedAmount}`;
 }
 
-// --------------------------------------------------
-// Exchange rates
-// --------------------------------------------------
+
+// Exchange rates//
 
 async function getExchangeRates(baseCurrency) {
   const currency = String(baseCurrency).trim().toUpperCase();
@@ -120,9 +114,7 @@ async function convertAmount(amount, fromCurrency, toCurrency) {
   return numericAmount * targetRate;
 }
 
-// --------------------------------------------------
-// Invoice status helpers
-// --------------------------------------------------
+// Invoice status helpers//
 
 function getStatus(invoice) {
   return String(invoice.status || "draft").toLowerCase();
@@ -161,9 +153,9 @@ function isOutstanding(invoice) {
   return ["unpaid", "sent", "overdue"].includes(status);
 }
 
-// --------------------------------------------------
-// Calculate dashboard totals
-// --------------------------------------------------
+
+// Calculate dashboard totals//
+
 
 async function calculateSummaryTotal(invoices, summaryType, currency) {
   const matchingInvoices = invoices.filter((invoice) => {
@@ -200,9 +192,7 @@ async function calculateSummaryTotal(invoices, summaryType, currency) {
   }, 0);
 }
 
-// --------------------------------------------------
-// Update each summary card independently
-// --------------------------------------------------
+// Update each summary card independently//
 
 async function updateSummaryCards() {
   const cards = document.querySelectorAll("[data-summary]");
@@ -258,9 +248,8 @@ document.querySelectorAll(".home-currency").forEach((select) => {
   select.addEventListener("change", updateSummaryCards);
 });
 
-// --------------------------------------------------
-// Invoice filters
-// --------------------------------------------------
+
+// Invoice filters//
 
 function getFilteredInvoices() {
   if (currentFilter === "all") {
@@ -282,9 +271,8 @@ function getFilteredInvoices() {
   );
 }
 
-// --------------------------------------------------
-// Render invoices
-// --------------------------------------------------
+
+// Render invoices//
 
 function renderInvoices() {
   if (!invoicesTableBody) {
@@ -370,10 +358,8 @@ function renderInvoices() {
     `;
   }).join("");
 }
-
-// --------------------------------------------------
 // User feedback
-// --------------------------------------------------
+
 
 function showFeedback(message, type = "info") {
   const feedback = document.querySelector("#invoice-feedback");
@@ -388,9 +374,9 @@ function showFeedback(message, type = "info") {
   feedback.setAttribute("aria-live", "polite");
 }
 
-// --------------------------------------------------
-// Change invoice status using PATCH
-// --------------------------------------------------
+
+// Change invoice status using PATCH..//
+
 
 async function handleStatusChange(event) {
   const select = event.target;
@@ -448,9 +434,9 @@ async function handleStatusChange(event) {
   }
 }
 
-// --------------------------------------------------
+
 // Delete invoice using DELETE
-// --------------------------------------------------
+
 
 async function handleDeleteInvoice(event) {
   const button = event.target.closest(".delete-invoice-btn");
@@ -508,9 +494,8 @@ if (invoicesTableBody) {
   invoicesTableBody.addEventListener("click", handleDeleteInvoice);
 }
 
-// --------------------------------------------------
+
 // Load invoices using GET
-// --------------------------------------------------
 
 async function loadInvoices() {
   if (invoicesTableBody) {
@@ -553,9 +538,8 @@ async function loadInvoices() {
   }
 }
 
-// --------------------------------------------------
 // Filter button event listeners
-// --------------------------------------------------
+
 
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -572,9 +556,9 @@ filterButtons.forEach((button) => {
   });
 });
 
-// --------------------------------------------------
+
 // Create invoice form
-// --------------------------------------------------
+
 
 function setupCreateInvoiceForm() {
   const form = document.querySelector("#create-invoice-form");
@@ -763,9 +747,9 @@ function setupCreateInvoiceForm() {
   });
 }
 
-// --------------------------------------------------
-// Start the application
-// --------------------------------------------------
+
+// Start the application//
+
 
 setupCreateInvoiceForm();
 loadInvoices();
