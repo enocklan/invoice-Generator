@@ -1,5 +1,5 @@
 
-const API_URL = "http://localhost:3000/invoices";
+const API_URL = "https://invoice-generator-2-g4yp.onrender.com/invoices";
 
 
 
@@ -52,7 +52,7 @@ export async function createInvoice(invoice) {
 // Delete an invoice using DELETE//
 export async function deleteInvoice(id) {
   const response = await fetch(
-    `http://localhost:3000/invoices/${encodeURIComponent(id)}`,
+    `${API_URL}/${encodeURIComponent(id)}`,
     {
       method: "DELETE"
     }
